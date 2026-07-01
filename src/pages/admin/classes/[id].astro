@@ -1,0 +1,45 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/requireAdmin';
+import { ssrClient } from '../../../lib/supabase';
+
+const forbidden = await requireAdmin(Astro);
+if (forbidden) return forbidden;
+
+const sb = ssrClient(Astro.cookies);
+const { id } = Astro.params;
+const { data: cls } = await sb!.from('classes').select('*').eq('id', id).single();
+if (!cls) return new Response('Not found', { status: 404 });
+---
+<AdminLayout title={`Edit ${cls.name}`}>
+  <a href="/admin/classes" class="text-sm text-ink-muted hover:text-accent">&larr; Back to classes</a>
+  <h1 class="font-display text-3xl mt-4 mb-8">Edit {cls.name}</h1>
+  <form method="POST" action={`/api/admin/classes/${cls.id}`} class="space-y-4 max-w-2xl">
+    <label class="block"><span class="text-sm font-medium">Name</span>
+      <input type="text" name="name" value={cls.name} required class="w-full mt-1 px-3 py-2 border border-line rounded" />
+    </label>
+    <label class="block"><span class="text-sm font-medium">Short description</span>
+      <textarea name="short_description" rows="2" class="w-full mt-1 px-3 py-2 border border-line rounded">{cls.short_description}</textarea>
+    </label>
+    <label class="block"><span class="text-sm font-medium">Full description (HTML)</span>
+      <textarea name="body_html" rows="10" class="w-full mt-1 px-3 py-2 border border-line rounded font-mono text-xs">{cls.body_html}</textarea>
+    </label>
+    <div class="grid grid-cols-2 gap-4">
+      <label class="block"><span class="text-sm font-medium">Price (cents)</span>
+        <input type="number" name="price_cents" value={cls.price_cents} required class="w-full mt-1 px-3 py-2 border border-line rounded" />
+      </label>
+      <label class="block"><span class="text-sm font-medium">Duration (minutes)</span>
+        <input type="number" name="duration_minutes" value={cls.duration_minutes} required class="w-full mt-1 px-3 py-2 border border-line rounded" />
+      </label>
+    </div>
+    <label class="flex items-center gap-2">
+      <input type="checkbox" name="published" checked={!!cls.published_at} />
+      <span class="text-sm">Published</span>
+    </label>
+    <div class="flex gap-3">
+      <button type="submit" class="px-4 py-2 bg-ink text-paper rounded hover:bg-accent transition-colors">Save</button>
+      <a href="/admin/classes" class="px-4 py-2 border border-line rounded">Cancel</a>
+    </div>
+  </form>
+</AdminLayout>

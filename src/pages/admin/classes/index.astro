@@ -1,0 +1,36 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/requireAdmin';
+import { ssrClient } from '../../../lib/supabase';
+
+const forbidden = await requireAdmin(Astro);
+if (forbidden) return forbidden;
+
+const sb = ssrClient(Astro.cookies);
+let classes: any[] = [];
+if (sb) {
+  const { data } = await sb.from('classes').select('id, name, slug, price_cents, published_at').order('sort_order');
+  classes = data ?? [];
+}
+---
+<AdminLayout title="Classes">
+  <h1 class="font-display text-3xl mb-8">Classes</h1>
+  <div class="border border-line rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-ink text-paper text-left">
+        <tr><th class="px-4 py-3">Name</th><th class="px-4 py-3">Price</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
+      </thead>
+      <tbody>
+        {classes.map((c: any) => (
+          <tr class="border-t border-line">
+            <td class="px-4 py-3 font-medium">{c.name}</td>
+            <td class="px-4 py-3">${(c.price_cents / 100).toFixed(0)}</td>
+            <td class="px-4 py-3">{c.published_at ? 'Published' : 'Draft'}</td>
+            <td class="px-4 py-3 text-right"><a href={`/admin/classes/${c.id}`} class="text-accent hover:underline">Edit</a></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>

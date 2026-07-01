@@ -1,0 +1,59 @@
+---
+export const prerender = false;
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../lib/requireAdmin';
+import { ssrClient } from '../../lib/supabase';
+
+const forbidden = await requireAdmin(Astro);
+if (forbidden) return forbidden;
+
+const sb = ssrClient(Astro.cookies);
+let bookings: any[] = [];
+if (sb) {
+  const { data } = await sb
+    .from('bookings')
+    .select('id, customer_name, customer_email, spots, amount_paid_cents, currency, status, created_at, class_session:class_sessions(start_time, class:classes(name))')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  bookings = data ?? [];
+}
+---
+<AdminLayout title="Bookings">
+  <h1 class="font-display text-3xl mb-8">Bookings</h1>
+  <div class="border border-line rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-ink text-paper text-left">
+        <tr>
+          <th class="px-4 py-3">Customer</th>
+          <th class="px-4 py-3">Class</th>
+          <th class="px-4 py-3">When</th>
+          <th class="px-4 py-3">Spots</th>
+          <th class="px-4 py-3">Paid</th>
+          <th class="px-4 py-3">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bookings.length === 0 && (
+          <tr><td class="px-4 py-6 text-ink-muted" colspan="6">No bookings yet.</td></tr>
+        )}
+        {bookings.map((b: any) => {
+          const cs: any = Array.isArray(b.class_session) ? b.class_session[0] : b.class_session;
+          const cls: any = Array.isArray(cs?.class) ? cs?.class[0] : cs?.class;
+          return (
+            <tr class="border-t border-line">
+              <td class="px-4 py-3">
+                <p class="font-medium">{b.customer_name}</p>
+                <p class="text-ink-muted text-xs">{b.customer_email}</p>
+              </td>
+              <td class="px-4 py-3">{cls?.name ?? '—'}</td>
+              <td class="px-4 py-3">{cs?.start_time ? new Date(cs.start_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}</td>
+              <td class="px-4 py-3">{b.spots}</td>
+              <td class="px-4 py-3">{b.currency} {(b.amount_paid_cents / 100).toFixed(2)}</td>
+              <td class="px-4 py-3 capitalize">{b.status}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>

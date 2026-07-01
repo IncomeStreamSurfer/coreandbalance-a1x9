@@ -1,0 +1,44 @@
+---
+export const prerender = false;
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../lib/requireAdmin';
+import { ssrClient } from '../../lib/supabase';
+
+const forbidden = await requireAdmin(Astro);
+if (forbidden) return forbidden;
+
+const sb = ssrClient(Astro.cookies);
+let counts = { bookings: 0, classes: 0, instructors: 0, sessions: 0, messages: 0 };
+if (sb) {
+  const [{ count: bookings }, { count: classes }, { count: instructors }, { count: sessions }, { count: messages }] = await Promise.all([
+    sb.from('bookings').select('*', { count: 'exact', head: true }),
+    sb.from('classes').select('*', { count: 'exact', head: true }),
+    sb.from('instructors').select('*', { count: 'exact', head: true }),
+    sb.from('class_sessions').select('*', { count: 'exact', head: true }).eq('status', 'scheduled'),
+    sb.from('contact_messages').select('*', { count: 'exact', head: true }),
+  ]);
+  counts = { bookings: bookings ?? 0, classes: classes ?? 0, instructors: instructors ?? 0, sessions: sessions ?? 0, messages: messages ?? 0 };
+}
+---
+<AdminLayout title="Overview">
+  <h1 class="font-display text-3xl mb-8">Studio overview</h1>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <a href="/admin/bookings" class="border border-line rounded-lg p-6 hover:border-accent transition-colors">
+      <p class="text-3xl font-display">{counts.bookings}</p>
+      <p class="text-sm text-ink-muted mt-1">Bookings</p>
+    </a>
+    <a href="/admin/classes" class="border border-line rounded-lg p-6 hover:border-accent transition-colors">
+      <p class="text-3xl font-display">{counts.classes}</p>
+      <p class="text-sm text-ink-muted mt-1">Class types</p>
+    </a>
+    <a href="/admin/instructors" class="border border-line rounded-lg p-6 hover:border-accent transition-colors">
+      <p class="text-3xl font-display">{counts.instructors}</p>
+      <p class="text-sm text-ink-muted mt-1">Instructors</p>
+    </a>
+    <div class="border border-line rounded-lg p-6">
+      <p class="text-3xl font-display">{counts.sessions}</p>
+      <p class="text-sm text-ink-muted mt-1">Upcoming sessions</p>
+    </div>
+  </div>
+  <p class="text-sm text-ink-muted mt-8">{counts.messages} contact message{counts.messages === 1 ? '' : 's'} received to date.</p>
+</AdminLayout>

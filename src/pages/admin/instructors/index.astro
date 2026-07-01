@@ -1,0 +1,36 @@
+---
+export const prerender = false;
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/requireAdmin';
+import { ssrClient } from '../../../lib/supabase';
+
+const forbidden = await requireAdmin(Astro);
+if (forbidden) return forbidden;
+
+const sb = ssrClient(Astro.cookies);
+let instructors: any[] = [];
+if (sb) {
+  const { data } = await sb.from('instructors').select('id, name, role, published_at').order('sort_order');
+  instructors = data ?? [];
+}
+---
+<AdminLayout title="Instructors">
+  <h1 class="font-display text-3xl mb-8">Instructors</h1>
+  <div class="border border-line rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-ink text-paper text-left">
+        <tr><th class="px-4 py-3">Name</th><th class="px-4 py-3">Role</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
+      </thead>
+      <tbody>
+        {instructors.map((i: any) => (
+          <tr class="border-t border-line">
+            <td class="px-4 py-3 font-medium">{i.name}</td>
+            <td class="px-4 py-3">{i.role}</td>
+            <td class="px-4 py-3">{i.published_at ? 'Published' : 'Draft'}</td>
+            <td class="px-4 py-3 text-right"><a href={`/admin/instructors/${i.id}`} class="text-accent hover:underline">Edit</a></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>

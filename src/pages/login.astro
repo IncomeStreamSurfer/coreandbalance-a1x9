@@ -1,0 +1,26 @@
+---
+import Base from '../layouts/Base.astro';
+const next = Astro.url.searchParams.get('next') ?? '/admin';
+const sent = Astro.url.searchParams.get('sent');
+const emailParam = Astro.url.searchParams.get('email');
+const error = Astro.url.searchParams.get('error');
+---
+<Base title="Studio Sign In | Core & Balance Pilates" description="Sign in to the studio admin dashboard." noindex={true}>
+  <section class="mx-auto max-w-md px-6 py-24">
+    <h1 class="font-display text-3xl mb-2">Studio sign in</h1>
+    <p class="text-sm text-ink-muted mb-8">We'll email you a link to sign in — no password needed.</p>
+
+    {sent ? (
+      <div class="border border-line rounded-lg p-6 text-sm">
+        <p>Check <strong>{emailParam}</strong> for a sign-in link. It expires in 15 minutes.</p>
+      </div>
+    ) : (
+      <form method="POST" action="/api/auth/login" class="space-y-4">
+        <input type="hidden" name="next" value={next} />
+        {error && <p class="text-sm text-red-700">Something went wrong ({error}). Please try again.</p>}
+        <input type="email" name="email" required placeholder="you@example.com" class="w-full px-4 py-3 border border-line rounded-lg focus:border-accent outline-none" />
+        <button type="submit" class="w-full py-3 rounded-lg bg-ink text-paper font-medium hover:bg-accent transition-colors">Email me a link</button>
+      </form>
+    )}
+  </section>
+</Base>
