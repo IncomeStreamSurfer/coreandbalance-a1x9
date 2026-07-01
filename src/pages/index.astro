@@ -1,0 +1,152 @@
+---
+import Base from '../layouts/Base.astro';
+import { anonClient } from '../lib/supabase';
+
+const sb = anonClient();
+let classTypes: any[] = [];
+let testimonials: any[] = [];
+if (sb) {
+  const [{ data: ct }, { data: t }] = await Promise.all([
+    sb.from('classes').select('slug, name, class_type, short_description, price_cents, duration_minutes, image_url').order('sort_order', { ascending: true }),
+    sb.from('testimonials').select('author_name, author_title, quote, rating').eq('featured', true).order('sort_order', { ascending: true }).limit(3),
+  ]);
+  classTypes = ct ?? [];
+  testimonials = t ?? [];
+}
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Core & Balance Pilates',
+  url: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, ''),
+  description: 'Strength, alignment, balance — built one session at a time.',
+};
+const orgSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Core & Balance Pilates',
+  url: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, ''),
+  logo: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') + '/favicon.svg',
+};
+
+const fallbackClasses = [
+  { slug: 'mat-pilates', name: 'Mat Pilates', class_type: 'mat', short_description: 'Bodyweight strength and control on the mat — the foundation of every practice.', price_cents: 2800, duration_minutes: 50, image_url: 'https://picsum.photos/seed/mat-pilates-austin/800/600' },
+  { slug: 'reformer-pilates', name: 'Reformer Pilates', class_type: 'reformer', short_description: 'Spring-loaded resistance on the reformer for a full-body, low-impact burn.', price_cents: 3800, duration_minutes: 50, image_url: 'https://picsum.photos/seed/reformer-pilates-austin/800/600' },
+  { slug: 'prenatal-pilates', name: 'Prenatal Pilates', class_type: 'prenatal', short_description: 'Trimester-safe movement to build strength for pregnancy, birth, and recovery.', price_cents: 3000, duration_minutes: 55, image_url: 'https://picsum.photos/seed/prenatal-pilates-austin/800/600' },
+  { slug: 'barre-fusion', name: 'Barre Fusion', class_type: 'barre', short_description: 'Ballet-inspired barre work blended with pilates control for full-body tone.', price_cents: 2800, duration_minutes: 45, image_url: 'https://picsum.photos/seed/barre-fusion-austin/800/600' },
+  { slug: 'private-sessions', name: 'Private Sessions', class_type: 'private', short_description: 'One-on-one programming built around your body, your goals, your schedule.', price_cents: 9500, duration_minutes: 55, image_url: 'https://picsum.photos/seed/private-pilates-austin/800/600' },
+];
+const displayClasses = classTypes.length > 0 ? classTypes : fallbackClasses;
+---
+
+<Base
+  title="Pilates Studio Austin | Core & Balance Pilates"
+  description="Discover mat, reformer, and prenatal pilates in Austin. Book your first class online today with Core & Balance Pilates."
+  structuredData={[orgSchema, websiteSchema]}
+>
+  <!-- HERO -->
+  <section class="relative overflow-hidden">
+    <div class="mx-auto max-w-6xl px-6 pt-16 pb-24 md:pt-24 md:pb-32 grid md:grid-cols-2 gap-12 items-center">
+      <div>
+        <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-5">South Congress, Austin</p>
+        <h1 class="font-display text-5xl md:text-6xl leading-[0.98] tracking-tight mb-6">
+          Austin's boutique <em class="not-italic text-accent">pilates</em> studio
+        </h1>
+        <p class="text-lg text-ink-muted leading-relaxed max-w-md mb-8">
+          Mat, reformer, and prenatal classes taught by certified instructors — built around your body, booked in under a minute.
+        </p>
+        <div class="flex items-center gap-5">
+          <a href="/book" class="rounded-full bg-ink px-7 py-3.5 text-sm font-medium text-paper hover:bg-accent transition-colors">Book your first class</a>
+          <a href="/schedule" class="text-sm font-medium text-ink hover:text-accent transition-colors">View the schedule →</a>
+        </div>
+        <div class="mt-12 flex items-center gap-8 text-sm text-ink-muted">
+          <div><span class="block font-display text-2xl text-ink">4</span>certified instructors</div>
+          <div class="w-px h-8 bg-line"></div>
+          <div><span class="block font-display text-2xl text-ink">5</span>class formats</div>
+          <div class="w-px h-8 bg-line"></div>
+          <div><span class="block font-display text-2xl text-ink">2019</span>opened our doors</div>
+        </div>
+      </div>
+      <div class="relative">
+        <div class="absolute -top-6 -right-6 w-full h-full border border-accent/40 rounded-lg -z-10 hidden md:block"></div>
+        <img
+          src="https://picsum.photos/seed/pilates-studio-hero-austin/1000/1200"
+          alt="Instructor guiding a client through a reformer pilates exercise at Core & Balance Pilates in Austin"
+          class="w-full h-[420px] md:h-[520px] object-cover rounded-lg"
+          loading="eager"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- INTRO / STORY -->
+  <section class="border-t border-line">
+    <div class="mx-auto max-w-3xl px-6 py-20 text-center">
+      <h2 class="font-display text-3xl md:text-4xl leading-tight mb-6">A studio built around alignment, not intensity</h2>
+      <p class="text-ink-muted leading-relaxed">
+        Core &amp; Balance Pilates opened on South Congress in 2019 with one goal: bring precise, instructor-led pilates
+        to Austin without the big-box gym feel. Every class caps at a small group size so our certified instructors can
+        actually see how you move — and correct it. Whether you're recovering from injury, training through pregnancy,
+        or chasing your first reformer class, we build the program around you.
+      </p>
+    </div>
+  </section>
+
+  <!-- CLASSES GRID -->
+  <section id="classes" class="border-t border-line bg-ink text-paper">
+    <div class="mx-auto max-w-6xl px-6 py-24">
+      <div class="flex items-end justify-between mb-12 flex-wrap gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-3">What we offer</p>
+          <h2 class="font-display text-3xl md:text-4xl leading-tight">Find the class that fits your body</h2>
+        </div>
+        <a href="/classes" class="text-sm font-medium hover:text-accent transition-colors">See all classes →</a>
+      </div>
+      <div class="grid md:grid-cols-3 gap-px bg-paper/10">
+        {displayClasses.slice(0, 5).map((c) => (
+          <a href={`/classes/${c.slug}`} class="group bg-ink p-8 hover:bg-ink/60 transition-colors">
+            <img src={c.image_url} alt={`${c.name} class at Core & Balance Pilates Austin`} class="w-full h-40 object-cover rounded-md mb-6" loading="lazy" />
+            <h3 class="font-display text-xl mb-2 group-hover:text-accent transition-colors">{c.name}</h3>
+            <p class="text-paper/70 text-sm leading-relaxed mb-4">{c.short_description}</p>
+            <p class="text-xs text-paper/50">{c.duration_minutes} min · from ${(c.price_cents / 100).toFixed(0)}</p>
+          </a>
+        ))}
+        <a href="/book" class="group bg-accent p-8 flex flex-col justify-center hover:bg-accent-dark transition-colors">
+          <h3 class="font-display text-xl mb-2">Ready when you are</h3>
+          <p class="text-paper/85 text-sm leading-relaxed mb-4">Grab a spot on this week's schedule — no membership required.</p>
+          <span class="text-sm font-medium">Book a class →</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="border-t border-line">
+    <div class="mx-auto max-w-3xl px-6 py-24 text-center">
+      <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-6">From our members</p>
+      {testimonials.length > 0 ? (
+        <blockquote class="font-display text-2xl md:text-3xl leading-snug mb-6">"{testimonials[0].quote}"</blockquote>
+      ) : (
+        <blockquote class="font-display text-2xl md:text-3xl leading-snug mb-6">
+          "I've done pilates all over Austin — the small class sizes here are what make it stick. My instructor knows my knee history by name."
+        </blockquote>
+      )}
+      <p class="text-sm text-ink-muted">{testimonials[0]?.author_name ?? 'Maren T.'}{testimonials[0]?.author_title ? `, ${testimonials[0].author_title}` : ', member since 2022'}</p>
+      <a href="/testimonials" class="inline-block mt-8 text-sm font-medium text-ink hover:text-accent transition-colors">Read more stories →</a>
+    </div>
+  </section>
+
+  <!-- CTA STRIP -->
+  <section class="border-t border-line">
+    <div class="mx-auto max-w-6xl px-6 py-20 grid md:grid-cols-[1fr_auto] items-center gap-8">
+      <div>
+        <h2 class="font-display text-3xl md:text-4xl leading-tight mb-3">First class is on us to figure out</h2>
+        <p class="text-ink-muted max-w-lg">New here? Meet your instructors, see this week's schedule, and reserve your mat, reformer, or prenatal spot in under a minute.</p>
+      </div>
+      <div class="flex gap-4">
+        <a href="/instructors" class="rounded-full border border-ink px-6 py-3 text-sm font-medium hover:border-accent hover:text-accent transition-colors">Meet instructors</a>
+        <a href="/book" class="rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper hover:bg-accent transition-colors whitespace-nowrap">Book a class</a>
+      </div>
+    </div>
+  </section>
+</Base>
