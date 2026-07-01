@@ -1,0 +1,164 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import { anonClient } from '../lib/supabase';
+
+const sessionId = Astro.url.searchParams.get('session');
+const classSlug = Astro.url.searchParams.get('class');
+
+const sb = anonClient();
+let session: any = null;
+let sessionOptions: any[] = [];
+
+if (sb) {
+  if (sessionId) {
+    const { data } = await sb
+      .from('class_sessions')
+      .select('id, start_time, end_time, capacity, spots_booked, class:classes(name, slug, price_cents, currency, duration_minutes, image_url), instructor:instructors(name, slug)')
+      .eq('id', sessionId)
+      .maybeSingle();
+    session = data;
+  } else {
+    let query = sb
+      .from('class_sessions')
+      .select('id, start_time, capacity, spots_booked, class:classes(name, slug, price_cents), instructor:instructors(name, slug)')
+      .eq('status', 'scheduled')
+      .gte('start_time', new Date().toISOString())
+      .order('start_time', { ascending: true })
+      .limit(12);
+    if (classSlug) {
+      const { data: cls } = await sb.from('classes').select('id').eq('slug', classSlug).maybeSingle();
+      if (cls) query = query.eq('class_id', cls.id);
+    }
+    const { data } = await query;
+    sessionOptions = data ?? [];
+  }
+}
+
+function fmt(dt: string) {
+  return new Date(dt).toLocaleString('en-US', { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+const renderedAt = Date.now();
+const full = session ? session.spots_booked >= session.capacity : false;
+---
+
+<Base
+  title="Book a Pilates Class | Core & Balance Pilates Austin"
+  description="Reserve your mat, reformer, prenatal, barre, or private pilates session at Core & Balance Pilates in Austin. Secure online payment with Stripe."
+  noindex={true}
+>
+  <section class="mx-auto max-w-2xl px-6 pt-16 pb-24">
+    <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-4">Book a class</p>
+    <h1 class="font-display text-4xl leading-tight mb-8">Reserve your spot</h1>
+
+    {!session && sessionOptions.length > 0 && (
+      <div class="mb-10">
+        <p class="text-sm text-ink-muted mb-4">Pick a session to continue:</p>
+        <div class="space-y-3">
+          {sessionOptions.map((s: any) => {
+            const isFull = s.spots_booked >= s.capacity;
+            return (
+              <a href={isFull ? '#' : `/book?session=${s.id}`} class={`flex items-center justify-between border border-line rounded-lg px-5 py-4 transition-colors ${isFull ? 'opacity-40 pointer-events-none' : 'hover:border-accent'}`}>
+                <div>
+                  <p class="font-medium">{s.class?.name}</p>
+                  <p class="text-sm text-ink-muted">{fmt(s.start_time)} · with {s.instructor?.name ?? 'Staff'}</p>
+                </div>
+                <span class="text-sm font-medium text-accent">${((s.class?.price_cents ?? 0) / 100).toFixed(0)}</span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    {!session && sessionOptions.length === 0 && (
+      <div class="border border-line rounded-lg p-8 text-center text-ink-muted mb-10">
+        <p>No sessions found. <a href="/schedule" class="text-accent hover:underline">View the full schedule</a> to pick a class.</p>
+      </div>
+    )}
+
+    {session && !full && (
+      <div>
+        <div class="border border-line rounded-lg p-6 mb-8 flex gap-5">
+          <img src={session.class?.image_url} alt={session.class?.name} class="w-24 h-24 rounded-md object-cover shrink-0" />
+          <div>
+            <h2 class="font-display text-xl mb-1">{session.class?.name}</h2>
+            <p class="text-sm text-ink-muted">{fmt(session.start_time)}</p>
+            <p class="text-sm text-ink-muted">with {session.instructor?.name ?? 'Staff instructor'}</p>
+            <p class="text-sm font-medium text-accent mt-2">${(session.class?.price_cents / 100).toFixed(0)} per spot</p>
+          </div>
+        </div>
+
+        <form id="booking-form" class="space-y-4">
+          <input type="hidden" name="renderedAt" value={renderedAt} />
+          <input type="text" name="website" aria-hidden="true" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0" />
+          <input type="hidden" name="session_id" value={session.id} />
+
+          <label class="block">
+            <span class="text-sm font-medium">Full name</span>
+            <input type="text" name="name" required class="w-full mt-1 px-4 py-3 border border-line rounded-lg focus:border-accent outline-none" />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium">Email</span>
+            <input type="email" name="email" required class="w-full mt-1 px-4 py-3 border border-line rounded-lg focus:border-accent outline-none" />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium">Phone (optional)</span>
+            <input type="tel" name="phone" class="w-full mt-1 px-4 py-3 border border-line rounded-lg focus:border-accent outline-none" />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium">Spots</span>
+            <select name="spots" class="w-full mt-1 px-4 py-3 border border-line rounded-lg focus:border-accent outline-none">
+              {Array.from({ length: Math.max(1, session.capacity - session.spots_booked) }, (_, i) => i + 1).slice(0, 4).map((n) => (
+                <option value={n}>{n}</option>
+              ))}
+            </select>
+          </label>
+
+          <button type="submit" id="pay-btn" class="w-full rounded-full bg-ink px-6 py-3.5 text-sm font-medium text-paper hover:bg-accent transition-colors">
+            Continue to secure payment
+          </button>
+          <p id="form-error" class="text-sm text-red-700 hidden"></p>
+          <p class="text-xs text-ink-muted text-center">Payment is processed securely by Stripe. You'll get an email confirmation immediately after booking.</p>
+        </form>
+      </div>
+    )}
+
+    {session && full && (
+      <div class="border border-line rounded-lg p-8 text-center text-ink-muted">
+        <p>This session is fully booked. <a href="/schedule" class="text-accent hover:underline">See other available times</a>.</p>
+      </div>
+    )}
+  </section>
+
+  <script>
+    const form = document.getElementById('booking-form') as HTMLFormElement | null;
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('pay-btn') as HTMLButtonElement;
+      const errEl = document.getElementById('form-error') as HTMLElement;
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Redirecting to payment…';
+      const body = Object.fromEntries(new FormData(form).entries());
+      try {
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (!res.ok || json.error || !json.url) {
+          throw new Error(json.error || 'Something went wrong');
+        }
+        window.location.href = json.url;
+      } catch (err: any) {
+        errEl.textContent = err.message || 'Something went wrong. Please try again.';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Continue to secure payment';
+      }
+    });
+  </script>
+</Base>

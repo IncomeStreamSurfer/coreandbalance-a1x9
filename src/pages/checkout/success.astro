@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import { stripe } from '../../lib/stripe';
+
+const sessionId = Astro.url.searchParams.get('session_id');
+let summary: { className?: string; when?: string; amount?: string; currency?: string; email?: string } | null = null;
+
+if (sessionId) {
+  try {
+    const s = await stripe().checkout.sessions.retrieve(sessionId, { expand: ['line_items'] });
+    summary = {
+      className: s.line_items?.data?.[0]?.description ?? undefined,
+      amount: s.amount_total ? (s.amount_total / 100).toFixed(2) : undefined,
+      currency: (s.currency ?? 'usd').toUpperCase(),
+      email: s.customer_details?.email ?? undefined,
+    };
+  } catch {
+    summary = null;
+  }
+}
+---
+
+<Base title="Booking Confirmed | Core & Balance Pilates" description="Your pilates class booking is confirmed." noindex={true}>
+  <section class="mx-auto max-w-xl px-6 py-24 text-center">
+    <div class="w-14 h-14 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto mb-6 text-2xl">✓</div>
+    <h1 class="font-display text-4xl leading-tight mb-4">You're all booked</h1>
+    <p class="text-ink-muted leading-relaxed mb-8">
+      {summary?.email ? `A confirmation email is on its way to ${summary.email}.` : 'A confirmation email is on its way to your inbox.'}
+      {summary?.className && <> You're booked for <strong>{summary.className}</strong>.</>}
+      {summary?.amount && <> Paid: <strong>{summary.currency} {summary.amount}</strong>.</>}
+    </p>
+    <div class="flex justify-center gap-4">
+      <a href="/schedule" class="rounded-full border border-ink px-6 py-3 text-sm font-medium hover:border-accent hover:text-accent transition-colors">View schedule</a>
+      <a href="/" class="rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper hover:bg-accent transition-colors">Back to home</a>
+    </div>
+  </section>
+</Base>
