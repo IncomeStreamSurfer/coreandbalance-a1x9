@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://coreandbalance-a1x9.vercel.app/sitemap-index.xml

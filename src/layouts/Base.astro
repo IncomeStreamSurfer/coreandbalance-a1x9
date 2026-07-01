@@ -1,0 +1,134 @@
+---
+import SEOHead from '../components/SEOHead.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  ogImage?: string;
+  structuredData?: object | object[];
+  noindex?: boolean;
+}
+
+const { title, description, ogImage, structuredData, noindex } = Astro.props;
+
+const SITE_URL = (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
+
+const localBusiness = {
+  '@context': 'https://schema.org',
+  '@type': 'ExerciseGym',
+  name: 'Core & Balance Pilates',
+  url: SITE_URL,
+  telephone: '+1-512-555-0148',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: '1704 South Congress Ave, Suite 4',
+    addressLocality: 'Austin',
+    addressRegion: 'TX',
+    postalCode: '78704',
+    addressCountry: 'US',
+  },
+  areaServed: 'Austin, TX',
+  priceRange: '$$',
+  openingHoursSpecification: [
+    { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday'], opens: '06:00', closes: '19:30' },
+    { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Saturday','Sunday'], opens: '08:00', closes: '13:00' },
+  ],
+};
+
+const schemaData = Array.isArray(structuredData) ? [...structuredData, localBusiness] : structuredData ? [structuredData, localBusiness] : [localBusiness];
+
+const nav = [
+  { href: '/classes', label: 'Classes' },
+  { href: '/schedule', label: 'Schedule' },
+  { href: '/instructors', label: 'Instructors' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+];
+---
+
+<html lang="en">
+<head>
+  <SEOHead title={title} description={description} ogImage={ogImage} structuredData={schemaData} noindex={noindex} />
+  <link rel="stylesheet" href="/src/styles/global.css" />
+</head>
+<body class="font-body antialiased">
+  <header id="site-header" class="sticky top-0 z-50 border-b border-transparent transition-colors duration-300">
+    <div class="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2">
+        <span class="inline-block h-2 w-2 rounded-full bg-accent"></span>
+        <span class="font-display text-lg tracking-tight">Core &amp; Balance</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-8 text-sm">
+        {nav.map((item) => (
+          <a href={item.href} class="text-ink/80 hover:text-ink transition-colors">{item.label}</a>
+        ))}
+      </nav>
+      <a href="/book" class="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper hover:bg-accent transition-colors">Book a class</a>
+    </div>
+  </header>
+
+  <main>
+    <slot />
+  </main>
+
+  <footer class="border-t border-line mt-24">
+    <div class="mx-auto max-w-6xl px-6 py-14 grid grid-cols-1 md:grid-cols-4 gap-10 text-sm">
+      <div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="inline-block h-2 w-2 rounded-full bg-accent"></span>
+          <span class="font-display text-lg">Core &amp; Balance Pilates</span>
+        </div>
+        <p class="text-ink-muted leading-relaxed">1704 South Congress Ave, Suite 4<br />Austin, TX 78704</p>
+        <p class="text-ink-muted mt-2">(512) 555-0148<br />hello@coreandbalancepilates.com</p>
+      </div>
+      <div>
+        <p class="font-medium mb-3">Classes</p>
+        <ul class="space-y-2 text-ink-muted">
+          <li><a href="/classes/mat-pilates" class="hover:text-accent">Mat Pilates</a></li>
+          <li><a href="/classes/reformer-pilates" class="hover:text-accent">Reformer Pilates</a></li>
+          <li><a href="/classes/prenatal-pilates" class="hover:text-accent">Prenatal Pilates</a></li>
+          <li><a href="/classes/barre-fusion" class="hover:text-accent">Barre Fusion</a></li>
+          <li><a href="/classes/private-sessions" class="hover:text-accent">Private Sessions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="font-medium mb-3">Studio</p>
+        <ul class="space-y-2 text-ink-muted">
+          <li><a href="/schedule" class="hover:text-accent">Class schedule</a></li>
+          <li><a href="/instructors" class="hover:text-accent">Instructors</a></li>
+          <li><a href="/about" class="hover:text-accent">About us</a></li>
+          <li><a href="/testimonials" class="hover:text-accent">Testimonials</a></li>
+          <li><a href="/contact" class="hover:text-accent">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="font-medium mb-3">Hours</p>
+        <ul class="space-y-1 text-ink-muted">
+          <li>Mon–Fri: 6:00am – 7:30pm</li>
+          <li>Sat–Sun: 8:00am – 1:00pm</li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-line">
+      <div class="mx-auto max-w-6xl px-6 py-6 flex flex-col md:flex-row justify-between gap-2 text-xs text-ink-muted">
+        <p>&copy; 2026 Core &amp; Balance Pilates. All rights reserved.</p>
+        <p><a href="/privacy" class="hover:text-accent">Privacy</a> · <a href="/terms" class="hover:text-accent">Terms</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const header = document.getElementById('site-header');
+    const onScroll = () => {
+      if (!header) return;
+      if (window.scrollY > 40) {
+        header.classList.add('bg-paper/90', 'backdrop-blur', 'border-line');
+      } else {
+        header.classList.remove('bg-paper/90', 'backdrop-blur', 'border-line');
+      }
+    };
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  </script>
+</body>
+</html>
