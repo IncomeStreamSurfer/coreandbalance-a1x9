@@ -1,0 +1,91 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import { anonClient } from '../lib/supabase';
+
+const sb = anonClient();
+let sessions: any[] = [];
+if (sb) {
+  const { data } = await sb
+    .from('class_sessions')
+    .select('id, start_time, end_time, capacity, spots_booked, class:classes(name, slug, class_type, price_cents), instructor:instructors(name, slug)')
+    .eq('status', 'scheduled')
+    .gte('start_time', new Date().toISOString())
+    .order('start_time', { ascending: true })
+    .limit(60);
+  sessions = data ?? [];
+}
+
+// Group by date (YYYY-MM-DD in studio-local display)
+const groups = new Map<string, any[]>();
+for (const s of sessions) {
+  const d = new Date(s.start_time);
+  const key = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key)!.push(s);
+}
+
+function fmtTime(dt: string) {
+  return new Date(dt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') },
+    { '@type': 'ListItem', position: 2, name: 'Schedule', item: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') + '/schedule' },
+  ],
+};
+---
+
+<Base
+  title="Class Schedule | Core & Balance Pilates Austin"
+  description="See this week's mat, reformer, prenatal, and barre fusion pilates schedule in Austin and book your spot online instantly."
+  structuredData={breadcrumb}
+>
+  <section class="mx-auto max-w-6xl px-6 pt-16 pb-8">
+    <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-4">Live availability</p>
+    <h1 class="font-display text-4xl md:text-5xl leading-tight max-w-2xl mb-6">This week at the studio</h1>
+    <p class="text-ink-muted max-w-2xl leading-relaxed">
+      Every session below is bookable online with instant Stripe checkout. Spots are limited on purpose — reformer
+      classes cap at six, private sessions at one — so grab your place before class fills.
+    </p>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-6 pb-24">
+    {sessions.length === 0 ? (
+      <div class="border border-line rounded-lg p-10 text-center text-ink-muted">
+        <p>No sessions are open for booking right now — check back shortly or <a href="/contact" class="text-accent hover:underline">contact the studio</a> directly.</p>
+      </div>
+    ) : (
+      <div class="space-y-12">
+        {Array.from(groups.entries()).map(([day, list]) => (
+          <div>
+            <h2 class="font-display text-2xl mb-4 pb-2 border-b border-line">{day}</h2>
+            <div class="grid md:grid-cols-2 gap-3">
+              {list.map((s: any) => {
+                const full = s.spots_booked >= s.capacity;
+                const left = s.capacity - s.spots_booked;
+                return (
+                  <div class="flex items-center justify-between border border-line rounded-lg px-5 py-4 hover:border-accent/60 transition-colors">
+                    <div>
+                      <p class="font-medium">{fmtTime(s.start_time)} · {s.class?.name}</p>
+                      <p class="text-sm text-ink-muted">with {s.instructor?.name ?? 'Staff instructor'} · {full ? 'Fully booked' : `${left} spot${left === 1 ? '' : 's'} left`}</p>
+                    </div>
+                    <a
+                      href={full ? '#' : `/book?session=${s.id}`}
+                      class={`shrink-0 rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${full ? 'bg-line text-ink-muted pointer-events-none' : 'bg-ink text-paper hover:bg-accent'}`}
+                    >
+                      {full ? 'Full' : `$${((s.class?.price_cents ?? 0) / 100).toFixed(0)} · Book`}
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </section>
+</Base>

@@ -1,0 +1,110 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import { anonClient } from '../../lib/supabase';
+
+const { slug } = Astro.params;
+const sb = anonClient();
+let instructor: any = null;
+let upcoming: any[] = [];
+if (sb) {
+  const { data } = await sb.from('instructors').select('*').eq('slug', slug).not('published_at', 'is', null).maybeSingle();
+  instructor = data;
+  if (instructor) {
+    const { data: sessions } = await sb
+      .from('class_sessions')
+      .select('id, start_time, capacity, spots_booked, class:classes(name, slug, price_cents)')
+      .eq('instructor_id', instructor.id)
+      .eq('status', 'scheduled')
+      .gte('start_time', new Date().toISOString())
+      .order('start_time', { ascending: true })
+      .limit(5);
+    upcoming = sessions ?? [];
+  }
+}
+
+if (!instructor) {
+  return new Response('Not found', { status: 404 });
+}
+
+const SITE = (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
+const personSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: instructor.name,
+  jobTitle: instructor.role,
+  description: instructor.bio,
+  worksFor: { '@type': 'LocalBusiness', name: 'Core & Balance Pilates' },
+};
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE },
+    { '@type': 'ListItem', position: 2, name: 'Instructors', item: `${SITE}/instructors` },
+    { '@type': 'ListItem', position: 3, name: instructor.name, item: `${SITE}/instructors/${instructor.slug}` },
+  ],
+};
+
+function fmt(dt: string) {
+  return new Date(dt).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+---
+
+<Base
+  title={`${instructor.name} | Core & Balance Pilates Austin`}
+  description={`${instructor.name} is a ${instructor.role} at Core & Balance Pilates in Austin. ${(instructor.bio ?? '').slice(0, 120)}`}
+  ogImage={instructor.image_url}
+  structuredData={[personSchema, breadcrumb]}
+>
+  <section class="mx-auto max-w-4xl px-6 pt-16 pb-16 grid md:grid-cols-[220px_1fr] gap-10">
+    <img src={instructor.image_url} alt={`${instructor.name}, ${instructor.role} at Core & Balance Pilates`} class="w-full h-64 md:h-full object-cover rounded-lg" loading="eager" />
+    <div>
+      <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-3"><a href="/instructors" class="hover:underline">Instructors</a> / {instructor.name}</p>
+      <h1 class="font-display text-4xl leading-tight mb-2">{instructor.name}</h1>
+      <p class="text-accent font-medium mb-5">{instructor.role}</p>
+      <p class="text-ink-muted leading-relaxed mb-6">{instructor.bio}</p>
+      {instructor.certifications?.length > 0 && (
+        <div class="mb-4">
+          <p class="text-sm font-medium mb-2">Certifications</p>
+          <ul class="flex flex-wrap gap-2">
+            {instructor.certifications.map((c: string) => (
+              <li class="text-xs border border-line rounded-full px-3 py-1 text-ink-muted">{c}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {instructor.specialties?.length > 0 && (
+        <div>
+          <p class="text-sm font-medium mb-2">Specialties</p>
+          <ul class="flex flex-wrap gap-2">
+            {instructor.specialties.map((s: string) => (
+              <li class="text-xs bg-ink text-paper rounded-full px-3 py-1">{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  </section>
+
+  {upcoming.length > 0 && (
+    <section class="border-t border-line">
+      <div class="mx-auto max-w-4xl px-6 py-16">
+        <h2 class="font-display text-2xl mb-6">Upcoming classes with {instructor.name.split(' ')[0]}</h2>
+        <div class="space-y-3">
+          {upcoming.map((s: any) => {
+            const full = s.spots_booked >= s.capacity;
+            return (
+              <div class="flex items-center justify-between border border-line rounded-lg px-5 py-4">
+                <p class="text-sm"><strong>{s.class?.name}</strong> · {fmt(s.start_time)}</p>
+                <a href={full ? '#' : `/book?session=${s.id}`} class={`rounded-full px-4 py-2 text-xs font-medium ${full ? 'bg-line text-ink-muted pointer-events-none' : 'bg-ink text-paper hover:bg-accent'}`}>
+                  {full ? 'Full' : 'Book'}
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  )}
+</Base>

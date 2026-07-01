@@ -1,0 +1,78 @@
+---
+import Base from '../../layouts/Base.astro';
+import { anonClient } from '../../lib/supabase';
+
+const sb = anonClient();
+let classes: any[] = [];
+if (sb) {
+  const { data } = await sb.from('classes').select('*').not('published_at', 'is', null).order('sort_order', { ascending: true });
+  classes = data ?? [];
+}
+
+const fallback = [
+  { slug: 'mat-pilates', name: 'Mat Pilates', short_description: 'Bodyweight strength and control on the mat.', duration_minutes: 50, price_cents: 2800, image_url: 'https://picsum.photos/seed/mat-pilates-class-austin/1000/700' },
+  { slug: 'reformer-pilates', name: 'Reformer Pilates', short_description: 'Spring-loaded resistance for a full-body burn.', duration_minutes: 50, price_cents: 3800, image_url: 'https://picsum.photos/seed/reformer-pilates-class-austin/1000/700' },
+  { slug: 'prenatal-pilates', name: 'Prenatal Pilates', short_description: 'Trimester-safe movement for pregnancy and recovery.', duration_minutes: 55, price_cents: 3000, image_url: 'https://picsum.photos/seed/prenatal-pilates-class-austin/1000/700' },
+  { slug: 'barre-fusion', name: 'Barre Fusion', short_description: 'Ballet-inspired barre blended with pilates control.', duration_minutes: 45, price_cents: 2800, image_url: 'https://picsum.photos/seed/barre-fusion-class-austin/1000/700' },
+  { slug: 'private-sessions', name: 'Private Sessions', short_description: 'One-on-one programming built around your goals.', duration_minutes: 55, price_cents: 9500, image_url: 'https://picsum.photos/seed/private-pilates-session-austin/1000/700' },
+];
+const list = classes.length > 0 ? classes : fallback;
+
+const collectionSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Pilates Classes in Austin',
+  url: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') + '/classes',
+  mainEntity: {
+    '@type': 'ItemList',
+    itemListElement: list.map((c, i) => ({ '@type': 'ListItem', position: i + 1, url: `/classes/${c.slug}`, name: c.name })),
+  },
+};
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') },
+    { '@type': 'ListItem', position: 2, name: 'Classes', item: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') + '/classes' },
+  ],
+};
+---
+
+<Base
+  title="Pilates Classes Austin | Core & Balance Pilates"
+  description="From mat pilates to reformer and prenatal sessions, find the right class for your goals. Book online in minutes."
+  structuredData={[collectionSchema, breadcrumb]}
+>
+  <section class="mx-auto max-w-6xl px-6 pt-16 pb-8">
+    <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-4">Class formats</p>
+    <h1 class="font-display text-4xl md:text-5xl leading-tight max-w-2xl mb-6">Explore our pilates classes</h1>
+    <p class="text-ink-muted max-w-2xl leading-relaxed">
+      Every Core & Balance class stays small on purpose. Whether you're new to pilates or looking for a reformer studio
+      that actually corrects your form, start with mat pilates classes Austin members have counted on since 2019, or
+      go straight to the reformer, prenatal, barre, or private format that fits where you are right now. Every listing
+      below links to a full class description, the live schedule, and instant online booking.
+    </p>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-6 pb-24">
+    <div class="grid md:grid-cols-2 gap-8">
+      {list.map((c) => (
+        <a href={`/classes/${c.slug}`} class="group border border-line rounded-lg overflow-hidden hover:border-accent transition-colors flex flex-col">
+          <img src={c.image_url} alt={`${c.name} class at Core & Balance Pilates in Austin`} class="w-full h-56 object-cover" loading="lazy" />
+          <div class="p-6 flex-1 flex flex-col">
+            <h2 class="font-display text-2xl mb-2 group-hover:text-accent transition-colors">{c.name}</h2>
+            <p class="text-ink-muted text-sm leading-relaxed mb-4 flex-1">{c.short_description}</p>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-ink-muted">{c.duration_minutes} min · from ${(c.price_cents / 100).toFixed(0)}</span>
+              <span class="font-medium text-accent">View class →</span>
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+    <div class="mt-14 flex flex-wrap gap-4">
+      <a href="/schedule" class="rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper hover:bg-accent transition-colors">See full schedule</a>
+      <a href="/book" class="rounded-full border border-ink px-6 py-3 text-sm font-medium hover:border-accent hover:text-accent transition-colors">Book a class</a>
+    </div>
+  </section>
+</Base>

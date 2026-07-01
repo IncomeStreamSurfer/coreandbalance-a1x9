@@ -1,0 +1,150 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import { anonClient } from '../../lib/supabase';
+import { safeHtml } from '../../lib/sanitize';
+
+const { slug } = Astro.params;
+const sb = anonClient();
+let cls: any = null;
+let instructors: any[] = [];
+let upcoming: any[] = [];
+if (sb) {
+  const { data } = await sb.from('classes').select('*').eq('slug', slug).not('published_at', 'is', null).maybeSingle();
+  cls = data;
+  if (cls) {
+    const { data: sessions } = await sb
+      .from('class_sessions')
+      .select('id, start_time, end_time, capacity, spots_booked, instructor:instructors(name, slug)')
+      .eq('class_id', cls.id)
+      .eq('status', 'scheduled')
+      .gte('start_time', new Date().toISOString())
+      .order('start_time', { ascending: true })
+      .limit(4);
+    upcoming = sessions ?? [];
+  }
+  const { data: instr } = await sb.from('instructors').select('name, slug, role, image_url').not('published_at', 'is', null).order('sort_order');
+  instructors = instr ?? [];
+}
+
+if (!cls) {
+  return new Response('Not found', { status: 404 });
+}
+
+const SITE = (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
+const serviceSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: cls.name,
+  description: cls.short_description,
+  provider: { '@type': 'LocalBusiness', name: 'Core & Balance Pilates' },
+  areaServed: { '@type': 'City', name: 'Austin' },
+};
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE },
+    { '@type': 'ListItem', position: 2, name: 'Classes', item: `${SITE}/classes` },
+    { '@type': 'ListItem', position: 3, name: cls.name, item: `${SITE}/classes/${cls.slug}` },
+  ],
+};
+
+const relatedClasses: Record<string, string[]> = {
+  'mat-pilates': ['reformer-pilates', 'barre-fusion'],
+  'reformer-pilates': ['mat-pilates', 'private-sessions'],
+  'prenatal-pilates': ['mat-pilates', 'private-sessions'],
+  'barre-fusion': ['mat-pilates', 'reformer-pilates'],
+  'private-sessions': ['reformer-pilates', 'prenatal-pilates'],
+};
+const related = relatedClasses[cls.slug] ?? [];
+
+function fmt(dt: string) {
+  return new Date(dt).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+---
+
+<Base
+  title={cls.meta_title || `${cls.name} | Core & Balance Pilates`}
+  description={cls.meta_description || cls.short_description}
+  ogImage={cls.image_url}
+  structuredData={[serviceSchema, breadcrumb]}
+>
+  <section class="mx-auto max-w-6xl px-6 pt-16 pb-8 grid md:grid-cols-2 gap-12 items-center">
+    <div>
+      <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-4">
+        <a href="/classes" class="hover:underline">Classes</a> / {cls.name}
+      </p>
+      <h1 class="font-display text-4xl md:text-5xl leading-tight mb-5">{cls.name} in Austin</h1>
+      <p class="text-ink-muted leading-relaxed mb-8">{cls.short_description}</p>
+      <div class="flex items-center gap-6 text-sm mb-8">
+        <span><strong class="font-display text-xl">{cls.duration_minutes}</strong> min</span>
+        <span class="w-px h-6 bg-line"></span>
+        <span><strong class="font-display text-xl">${(cls.price_cents / 100).toFixed(0)}</strong> per class</span>
+        <span class="w-px h-6 bg-line"></span>
+        <span>{cls.level}</span>
+      </div>
+      <a href={`/book?class=${cls.slug}`} class="inline-block rounded-full bg-ink px-7 py-3.5 text-sm font-medium text-paper hover:bg-accent transition-colors">Book this class</a>
+    </div>
+    <img src={cls.image_url} alt={`${cls.name} class at Core & Balance Pilates in Austin, TX`} class="w-full h-[380px] object-cover rounded-lg" loading="eager" />
+  </section>
+
+  <section class="border-t border-line">
+    <div class="mx-auto max-w-3xl px-6 py-16 prose-content">
+      <div set:html={safeHtml(cls.body_html ?? '')} class="text-ink-muted leading-relaxed space-y-4 [&_p]:mb-4" />
+    </div>
+  </section>
+
+  {upcoming.length > 0 && (
+    <section class="border-t border-line bg-ink text-paper">
+      <div class="mx-auto max-w-6xl px-6 py-16">
+        <h2 class="font-display text-2xl md:text-3xl mb-8">Upcoming {cls.name} sessions</h2>
+        <div class="grid md:grid-cols-4 gap-4">
+          {upcoming.map((s: any) => {
+            const full = s.spots_booked >= s.capacity;
+            return (
+              <div class="border border-paper/20 rounded-lg p-5">
+                <p class="text-sm text-paper/70 mb-1">{fmt(s.start_time)}</p>
+                <p class="font-medium mb-3">{s.instructor?.name ?? 'Staff instructor'}</p>
+                <p class="text-xs text-paper/50 mb-4">{full ? 'Fully booked' : `${s.capacity - s.spots_booked} spots left`}</p>
+                <a href={full ? '#' : `/book?session=${s.id}`} class={`text-sm font-medium ${full ? 'text-paper/40 pointer-events-none' : 'text-accent hover:underline'}`}>
+                  {full ? 'Waitlist only' : 'Book this spot →'}
+                </a>
+              </div>
+            );
+          })}
+        </div>
+        <a href="/schedule" class="inline-block mt-8 text-sm font-medium hover:text-accent transition-colors">See the full schedule →</a>
+      </div>
+    </section>
+  )}
+
+  <section class="border-t border-line">
+    <div class="mx-auto max-w-6xl px-6 py-16">
+      <h2 class="font-display text-2xl md:text-3xl mb-8">Meet your instructors</h2>
+      <div class="flex flex-wrap gap-6">
+        {instructors.slice(0, 4).map((i: any) => (
+          <a href={`/instructors/${i.slug}`} class="flex items-center gap-3 border border-line rounded-full pr-5 hover:border-accent transition-colors">
+            <img src={i.image_url} alt={`${i.name}, ${i.role} at Core & Balance Pilates`} class="w-12 h-12 rounded-full object-cover" loading="lazy" />
+            <span class="text-sm font-medium">{i.name}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  {related.length > 0 && (
+    <section class="border-t border-line">
+      <div class="mx-auto max-w-6xl px-6 py-16">
+        <h2 class="font-display text-2xl md:text-3xl mb-8">You might also like</h2>
+        <div class="flex flex-wrap gap-4">
+          {related.map((slug) => (
+            <a href={`/classes/${slug}`} class="rounded-full border border-ink px-5 py-2.5 text-sm font-medium hover:border-accent hover:text-accent transition-colors capitalize">
+              {slug.replace('-', ' ')}
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+</Base>

@@ -1,0 +1,54 @@
+---
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import { anonClient } from '../../lib/supabase';
+
+const sb = anonClient();
+let instructors: any[] = [];
+if (sb) {
+  const { data } = await sb.from('instructors').select('*').not('published_at', 'is', null).order('sort_order');
+  instructors = data ?? [];
+}
+
+const collectionSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Pilates Instructors in Austin',
+  url: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') + '/instructors',
+  mainEntity: {
+    '@type': 'ItemList',
+    itemListElement: instructors.map((i, idx) => ({ '@type': 'ListItem', position: idx + 1, url: `/instructors/${i.slug}`, name: i.name })),
+  },
+};
+---
+
+<Base
+  title="Our Instructors | Core & Balance Pilates Austin"
+  description="Meet the certified pilates instructors behind Core & Balance Pilates in Austin — reformer, mat, prenatal, and private session specialists."
+  structuredData={collectionSchema}
+>
+  <section class="mx-auto max-w-6xl px-6 pt-16 pb-8">
+    <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-4">The team</p>
+    <h1 class="font-display text-4xl md:text-5xl leading-tight max-w-2xl mb-6">Certified instructors, not just class-runners</h1>
+    <p class="text-ink-muted max-w-2xl leading-relaxed">
+      Every instructor at Core & Balance completed a comprehensive certification (200+ teaching hours minimum) before
+      ever leading a class here. Several hold specialty certifications in prenatal care, rehab, or dance — so whoever
+      you book with actually understands the goal behind your session.
+    </p>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-6 pb-24">
+    <div class="grid md:grid-cols-2 gap-8">
+      {instructors.map((i) => (
+        <a href={`/instructors/${i.slug}`} class="group flex gap-6 border border-line rounded-lg p-6 hover:border-accent transition-colors">
+          <img src={i.image_url} alt={`${i.name}, ${i.role} at Core & Balance Pilates Austin`} class="w-28 h-32 object-cover rounded-md shrink-0" loading="lazy" />
+          <div>
+            <h2 class="font-display text-xl mb-1 group-hover:text-accent transition-colors">{i.name}</h2>
+            <p class="text-sm text-accent mb-3">{i.role}</p>
+            <p class="text-sm text-ink-muted leading-relaxed line-clamp-3">{i.bio}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+</Base>
