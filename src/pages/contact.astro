@@ -1,0 +1,93 @@
+---
+import Base from '../layouts/Base.astro';
+
+const renderedAt = Date.now();
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') },
+    { '@type': 'ListItem', position: 2, name: 'Contact', item: (import.meta.env.PUBLIC_SITE_URL ?? '').replace(/\/$/, '') + '/contact' },
+  ],
+};
+---
+
+<Base
+  title="Contact Us | Core & Balance Pilates Austin"
+  description="Have a question about classes, private sessions, or booking? Reach Core & Balance Pilates in Austin, TX."
+  structuredData={breadcrumb}
+>
+  <section class="mx-auto max-w-5xl px-6 pt-16 pb-24 grid md:grid-cols-2 gap-14">
+    <div>
+      <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-4">Get in touch</p>
+      <h1 class="font-display text-4xl leading-tight mb-6">We'll get back to you within a day</h1>
+      <p class="text-ink-muted leading-relaxed mb-8">
+        Questions about a class, a private session, or a gift booking? Send a message and our studio manager will
+        reply within one business day. For same-day scheduling questions, calling is fastest.
+      </p>
+      <div class="space-y-4 text-sm">
+        <p><strong class="block">Address</strong><span class="text-ink-muted">1704 South Congress Ave, Suite 4, Austin, TX 78704</span></p>
+        <p><strong class="block">Phone</strong><span class="text-ink-muted">(512) 555-0148</span></p>
+        <p><strong class="block">Email</strong><span class="text-ink-muted">hello@coreandbalancepilates.com</span></p>
+        <p><strong class="block">Hours</strong><span class="text-ink-muted">Mon–Fri 6:00am–7:30pm · Sat–Sun 8:00am–1:00pm</span></p>
+      </div>
+      <a
+        href="https://www.google.com/maps/search/?api=1&query=1704+South+Congress+Ave+Austin+TX+78704"
+        target="_blank" rel="noopener"
+        class="inline-block mt-8 text-sm font-medium text-accent hover:underline"
+      >Open in Google Maps →</a>
+    </div>
+
+    <div>
+      <form id="contact-form" method="POST" action="/api/contact" class="space-y-4 border border-line rounded-lg p-8">
+        <input type="hidden" name="renderedAt" value={renderedAt} />
+        <input type="text" name="website" aria-hidden="true" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0" />
+        <label class="block">
+          <span class="text-sm font-medium">Name</span>
+          <input type="text" name="name" required class="w-full mt-1 px-4 py-3 border border-line rounded-lg focus:border-accent outline-none" />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Email</span>
+          <input type="email" name="email" required class="w-full mt-1 px-4 py-3 border border-line rounded-lg focus:border-accent outline-none" />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Message</span>
+          <textarea name="message" rows="5" required minlength="10" class="w-full mt-1 px-4 py-3 border border-line rounded-lg focus:border-accent outline-none"></textarea>
+        </label>
+        <button type="submit" id="contact-submit" class="w-full rounded-full bg-ink px-6 py-3.5 text-sm font-medium text-paper hover:bg-accent transition-colors">Send message</button>
+        <p id="contact-status" class="text-sm hidden"></p>
+      </form>
+    </div>
+  </section>
+
+  <script>
+    const form = document.getElementById('contact-form') as HTMLFormElement | null;
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('contact-submit') as HTMLButtonElement;
+      const status = document.getElementById('contact-status') as HTMLElement;
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      const body = Object.fromEntries(new FormData(form).entries());
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (!res.ok || json.error) throw new Error(json.error || 'Something went wrong');
+        status.textContent = "Message sent — we'll reply within a business day.";
+        status.className = 'text-sm text-accent';
+        form.reset();
+      } catch (err: any) {
+        status.textContent = err.message || 'Something went wrong. Please try again.';
+        status.className = 'text-sm text-red-700';
+      } finally {
+        status.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Send message';
+      }
+    });
+  </script>
+</Base>

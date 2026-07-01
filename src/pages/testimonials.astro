@@ -1,0 +1,42 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import { anonClient } from '../lib/supabase';
+
+const sb = anonClient();
+let testimonials: any[] = [];
+if (sb) {
+  const { data } = await sb.from('testimonials').select('*').order('sort_order');
+  testimonials = data ?? [];
+}
+const fallback = [
+  { author_name: 'Maren T.', author_title: 'Member since 2022', quote: "I've done pilates all over Austin — the small class sizes here are what make it stick." },
+];
+const list = testimonials.length > 0 ? testimonials : fallback;
+---
+
+<Base
+  title="Member Stories | Core & Balance Pilates Austin"
+  description="Read what Core & Balance Pilates members in Austin say about our mat, reformer, prenatal, and private pilates classes."
+>
+  <section class="mx-auto max-w-3xl px-6 pt-16 pb-8 text-center">
+    <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-4">Member stories</p>
+    <h1 class="font-display text-4xl md:text-5xl leading-tight mb-6">What members say</h1>
+  </section>
+
+  <section class="mx-auto max-w-3xl px-6 pb-24 space-y-10">
+    {list.map((t: any, i: number) => (
+      <blockquote class={`pb-10 ${i < list.length - 1 ? 'border-b border-line' : ''}`}>
+        <p class="font-display text-2xl leading-snug mb-4">"{t.quote}"</p>
+        <footer class="text-sm text-ink-muted">{t.author_name}{t.author_title ? `, ${t.author_title}` : ''}</footer>
+      </blockquote>
+    ))}
+  </section>
+
+  <section class="border-t border-line">
+    <div class="mx-auto max-w-6xl px-6 py-16 text-center">
+      <h2 class="font-display text-3xl mb-4">Ready to see for yourself?</h2>
+      <a href="/book" class="inline-block rounded-full bg-ink px-7 py-3.5 text-sm font-medium text-paper hover:bg-accent transition-colors">Book your first class</a>
+    </div>
+  </section>
+</Base>

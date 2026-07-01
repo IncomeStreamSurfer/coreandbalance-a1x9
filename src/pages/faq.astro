@@ -1,0 +1,42 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import { anonClient } from '../lib/supabase';
+import { safeHtml } from '../lib/sanitize';
+
+const sb = anonClient();
+let faqs: any[] = [];
+if (sb) {
+  const { data } = await sb.from('faqs').select('*').eq('page_slug', 'faq').order('sort_order');
+  faqs = data ?? [];
+}
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((f: any) => ({
+    '@type': 'Question',
+    name: f.question,
+    acceptedAnswer: { '@type': 'Answer', text: f.answer_html.replace(/<[^>]+>/g, '') },
+  })),
+};
+---
+
+<Base
+  title="Pilates FAQs Austin | Core & Balance Pilates"
+  description="Answers to common questions about booking, cancellations, and what to expect at Core & Balance Pilates in Austin."
+  structuredData={faqSchema}
+>
+  <section class="mx-auto max-w-3xl px-6 pt-16 pb-24">
+    <p class="text-xs uppercase tracking-[0.2em] text-accent font-medium mb-4">Good to know</p>
+    <h1 class="font-display text-4xl md:text-5xl leading-tight mb-10">Frequently asked questions</h1>
+    <div class="space-y-8">
+      {faqs.map((f: any) => (
+        <div class="border-b border-line pb-8">
+          <h2 class="font-display text-xl mb-3">{f.question}</h2>
+          <div class="text-ink-muted leading-relaxed" set:html={safeHtml(f.answer_html)} />
+        </div>
+      ))}
+    </div>
+  </section>
+</Base>
